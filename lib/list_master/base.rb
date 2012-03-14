@@ -35,8 +35,8 @@ module ListMaster
       #
       # Associating this list master with a model
       #
-      def model model_name
-        @@model = model_name.constantize
+      def model model_class
+        @@model = model_class
       end
 
       #

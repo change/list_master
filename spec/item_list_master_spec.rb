@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 class ItemListMaster < ListMaster::Base
-  model 'Item'
+  model Item
 
   set 'recent', :attribute => 'created_at', :descending => true
   set 'category'
