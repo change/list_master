@@ -31,6 +31,8 @@ ActiveRecord::Base.establish_connection adapter: 'sqlite3', database: TEST_DB
 
 class Item < ActiveRecord::Base
   has_many :assoc_items
+
+  scope :has_category, where('category IS NOT NULL')
 end
 
 class AssocItem < ActiveRecord::Base
@@ -40,6 +42,7 @@ end
 Item.create! name: 'foo', category: 'a', :created_at => 2.months.ago      # id: 1
 Item.create! name: 'bar', category: 'b', :created_at => 1.days.ago      # id: 2
 Item.create! name: 'baz', category: 'b', :created_at => 30.seconds.ago  # id: 3
+Item.create! name: 'blah' # id : 4
 
 AssocItem.create! :item_id => 3, :rank => 1, :kind => nil # id: 1
 AssocItem.create! :item_id => 1, :rank => 2, :kind => 'a' # id: 2

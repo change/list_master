@@ -39,6 +39,16 @@ module ListMaster
         @@model = model_class
       end
 
+
+      @@scope = :unscoped
+      #
+      # Specify a scope to query for when updating redis sets
+      #
+      def scope scope_name
+        @@scope = scope_name
+      end
+
+
       #
       # Defining sets to maintain
       #
@@ -67,7 +77,7 @@ module ListMaster
     # Goes through every record of the model and adds the id to every relevant set
     #
     def process
-      @@model.find_in_batches do |models|
+      @@model.send(@@scope).find_in_batches do |models|
         models.each do |model|
           @@sets.each do |set|
             # SCORED SETS

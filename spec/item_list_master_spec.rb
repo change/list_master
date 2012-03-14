@@ -3,6 +3,8 @@ require 'spec_helper'
 class ItemListMaster < ListMaster::Base
   model Item
 
+  scope :has_category
+
   set 'recent', :attribute => 'created_at', :descending => true
   set 'category'
   set 'assoc_rank', :attribute => 'rank', :on => lambda { |p| p.assoc_items.where('kind IS NULL').first }
