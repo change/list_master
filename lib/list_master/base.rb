@@ -44,16 +44,13 @@ module ListMaster
       #
       @@sets = []
       def set *args
-        options = {
-          :attribute => nil,
-          :descending => nil
-        }.merge(args.extract_options!)
-        name = args.first
+        options = args.extract_options!
         @@sets << {
-          name: name,
-          score: options[:attribute] || nil,
-          descending: options[:descending] || nil
-        }
+          name: args.first,
+          attribute: nil,
+          descending: nil,
+          on: nil
+        }.merge(options)
       end
     end
 
@@ -68,16 +65,31 @@ module ListMaster
     # Goes through every record of the model and adds the id to every relevant set
     #
     def process
-      @@model.find_each do |obj|
+      @@model.find_each do |model|
         @@sets.each do |set|
-          if set[:score]
-            score = obj.read_attribute(set[:score]).to_score
-            score *= -1 if set[:descending]
-            redis.zadd set[:name], score, obj.id
+          # SCORED SETS
+          if set[:attribute]
+            if set[:on]
+              model_with_attribute = model.send(set[:on])
+            else
+              model_with_attribute = model
+            end
+            next unless model_with_attribute
+            score = model_with_attribute.read_attribute(set[:attribute]).to_score
+            set_name = set[:name]
+          # NON-SCORED SETS
           else
-            attribute = obj.read_attribute(set[:name]) # used for name of set
-            redis.zadd "#{set[:name]}:#{attribute}", 0, obj.id
+            score = 0
+            if set[:where]
+              set_name = set[:name]
+              next unless set[:where].call(model)
+            else
+              set_name = set[:name] + ':' + model.read_attribute(set[:name])
+            end
           end
+          score *= -1 if set[:descending]
+
+          redis.zadd set_name, score, model.id
         end
       end
     end

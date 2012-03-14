@@ -5,6 +5,9 @@ class ItemListMaster < ListMaster::Base
 
   set 'recent', :attribute => 'created_at', :descending => true
   set 'category'
+  set 'assoc_rank', :attribute => 'rank', :on => 'assoc_item'
+
+  set 'monthly', :where => lambda { |i| i.created_at.to_time > 30.days.ago and i.created_at.to_time < 1.days.ago }
 end
 
 describe ItemListMaster do
@@ -32,10 +35,27 @@ describe ItemListMaster do
       @master.redis.zrange('recent', 0, -1).map(&:to_i).should == [3, 2, 1]
     end
 
+    it 'should generate a zset for an associated attribute' do
+      @master.redis.type('assoc_rank').should == 'zset'
+      @master.redis.zrange('assoc_rank', 0, -1, {:withscores => true}).map(&:to_i).should == [
+        3,
+        1,
+        1,
+        2
+      ]
+    end
+
+    it 'should generate a zet for every set declared with where' do
+      @master.redis.type('monthly').should == 'zset'
+      @master.redis.zrange('monthly', 0, -1, {:withscores => true}).map(&:to_i).should == [2, 0]
+    end
+
     describe "#intersect" do
 
       it 'should return an array of ids that are in both lists' do
         @master.intersect('recent', 'category:b').should == [3, 2]
+
+        @master.intersect('assoc_rank', 'category:a').should == [1]
       end
 
       it 'should accept limit and offset' do
