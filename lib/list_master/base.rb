@@ -46,12 +46,14 @@ module ListMaster
       def set *args
         options = args.extract_options!
         @@sets << {
-          name: args.first,
+          name: args.first.to_s,
           attribute: nil,
           descending: nil,
-          on: nil
+          on: nil,
+          where: nil
         }.merge(options)
       end
+
     end
 
     #
@@ -65,38 +67,41 @@ module ListMaster
     # Goes through every record of the model and adds the id to every relevant set
     #
     def process
-      @@model.find_each do |model|
-        @@sets.each do |set|
-          # SCORED SETS
-          if set[:attribute]
-            if set[:on]
-              if set[:on].is_a? Proc
-                model_with_attribute = set[:on].call(model)
+      @@model.find_in_batches do |models|
+        models.each do |model|
+          @@sets.each do |set|
+            # SCORED SETS
+            if set[:attribute]
+              if set[:on]
+                if set[:on].is_a? Proc
+                  model_with_attribute = set[:on].call(model)
+                else
+                  model_with_attribute = model.send(set[:on])
+                end
               else
-                model_with_attribute = model.send(set[:on])
+                model_with_attribute = model
               end
-            else
-              model_with_attribute = model
-            end
-            next unless model_with_attribute
-            score = model_with_attribute.read_attribute(set[:attribute]).to_score
-            set_name = set[:name]
-          # NON-SCORED SETS
-          else
-            score = 0
-            if set[:where]
+              next unless model_with_attribute
+              score = model_with_attribute.read_attribute(set[:attribute]).to_score
               set_name = set[:name]
-              next unless set[:where].call(model)
+            # NON-SCORED SETS
             else
-              set_name = set[:name] + ':' + model.read_attribute(set[:name]).to_s
+              score = 0
+              if set[:where]
+                set_name = set[:name]
+                next unless set[:where].call(model)
+              else
+                set_name = set[:name] + ':' + model.read_attribute(set[:name]).to_s
+              end
             end
-          end
-          score *= -1 if set[:descending]
+            score *= -1 if set[:descending]
 
-          redis.zadd set_name, score, model.id
+            redis.zadd set_name, score, model.id
+          end
         end
       end
     end
+
 
     #
     # Takes a sequence of list names to intersect
