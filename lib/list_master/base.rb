@@ -70,7 +70,11 @@ module ListMaster
           # SCORED SETS
           if set[:attribute]
             if set[:on]
-              model_with_attribute = model.send(set[:on])
+              if set[:on].is_a? Proc
+                model_with_attribute = set[:on].call(model)
+              else
+                model_with_attribute = model.send(set[:on])
+              end
             else
               model_with_attribute = model
             end

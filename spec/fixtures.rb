@@ -17,7 +17,8 @@ SQLite3::Database.new(TEST_DB) do |db| db.execute_batch <<-SQL
   CREATE TABLE assoc_items (
     id INTEGER PRIMARY KEY,
     item_id INTEGER,
-    rank INTEGER
+    rank INTEGER,
+    kind TEXT
   );
   SQL
 end
@@ -29,7 +30,7 @@ end
 ActiveRecord::Base.establish_connection adapter: 'sqlite3', database: TEST_DB
 
 class Item < ActiveRecord::Base
-  has_one :assoc_item
+  has_many :assoc_items
 end
 
 class AssocItem < ActiveRecord::Base
@@ -40,5 +41,5 @@ Item.create! name: 'foo', category: 'a', :created_at => 2.months.ago      # id: 
 Item.create! name: 'bar', category: 'b', :created_at => 1.days.ago      # id: 2
 Item.create! name: 'baz', category: 'b', :created_at => 30.seconds.ago  # id: 3
 
-AssocItem.create! :item_id => 3, :rank => 1
-AssocItem.create! :item_id => 1, :rank => 2
+AssocItem.create! :item_id => 3, :rank => 1, :kind => nil # id: 1
+AssocItem.create! :item_id => 1, :rank => 2, :kind => 'a' # id: 2
