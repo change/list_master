@@ -109,9 +109,9 @@ module ListMaster
       limit = options[:limit] || 10
       offset = options[:offset] || 0
 
-      args = args.map { |a| 'list_master:item_list_master:' + a }
+      args = args.map { |a| "list_master:#{redis.namespace}:#{a}" }
 
-      redis.zinterstore 'list_master:item_list_master:out', args if args.count > 1
+      redis.zinterstore "list_master:#{redis.namespace}:out", args if args.count > 1
 
       redis.zrange('out', offset, offset + limit).map(&:to_i)
     end
