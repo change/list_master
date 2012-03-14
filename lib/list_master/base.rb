@@ -88,7 +88,7 @@ module ListMaster
               set_name = set[:name]
               next unless set[:where].call(model)
             else
-              set_name = set[:name] + ':' + model.read_attribute(set[:name])
+              set_name = set[:name] + ':' + model.read_attribute(set[:name]).to_s
             end
           end
           score *= -1 if set[:descending]
