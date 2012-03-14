@@ -50,6 +50,12 @@ describe ItemListMaster do
       @master.redis.zrange('monthly', 0, -1, {:withscores => true}).map(&:to_i).should == [2, 0]
     end
 
+    it 'should remove deleted objects on subsequent calls to process' do
+      Item.destroy(1)
+      @master.process
+      @master.redis.zrange('recent', 0, -1).map(&:to_i).should == [3, 2]
+    end
+
     describe "#intersect" do
 
       it 'should return an array of ids that are in both lists' do

@@ -73,12 +73,40 @@ module ListMaster
       @redis ||= Redis::Namespace.new self.class.name.underscore, :redis => ListMaster.redis
     end
 
+
+    def process
+      clean
+      update
+    end
+
+    def clean
+      good_ids = @@model.send(@@scope).select(:id).map(&:id)
+
+      redis.del 'good'
+      good_ids.each { |i| redis.sadd 'good', i }
+
+      ids_to_remove = redis.sdiff 'all', 'good'
+
+      set_names = redis.smembers 'sets'
+
+      set_names.each do |set_name|
+        ids_to_remove.each do |id|
+          redis.zrem set_name, id
+        end
+      end
+    end
+
     #
     # Goes through every record of the model and adds the id to every relevant set
     #
-    def process
+    def update
+
       @@model.send(@@scope).find_in_batches do |models|
         models.each do |model|
+
+          redis.sadd 'all', model.id
+
+          # For every declared set, set add this model's id
           @@sets.each do |set|
             # SCORED SETS
             if set[:attribute]
@@ -105,6 +133,8 @@ module ListMaster
               end
             end
             score *= -1 if set[:descending]
+
+            redis.sadd 'sets', set_name
 
             redis.zadd set_name, score, model.id
           end
