@@ -99,94 +99,91 @@ module ListMaster
 
       redis.zrange('out', offset, offset + limit).map(&:to_i)
     end
-  end
+    private
+      #
+      # Finds ids that are no longer in the given scope and removes them from each set
+      #
+      def clean
+        good_ids = @@model.send(@@scope).select(:id).map(&:id)
 
-  private
+        redis.del 'good'
+        good_ids.each { |i| redis.sadd 'good', i }
+        # Get the diff of the wanted/unwanted id's and use it to 'clean'
+        # the current sets, keeping only wanted records around
+        ids_to_remove = redis.sdiff 'all', 'good'
 
-    #
-    # Finds ids that are no longer in the given scope and removes them from each set
-    #
-    def clean
-      good_ids = @@model.send(@@scope).select(:id).map(&:id)
-
-      redis.del 'good'
-      good_ids.each { |i| redis.sadd 'good', i }
-      # Get the diff of the wanted/unwanted id's and use it to 'clean'
-      # the current sets, keeping only wanted records around
-      ids_to_remove = redis.sdiff 'all', 'good'
-
-      (redis.keys('*') - ['all', 'good']).each do |set_name|
-        ids_to_remove.each do |id|
-          redis.zrem set_name, id
-        end
-      end
-    end
-
-    #
-    # Goes through every record of the model in the given scope and adds the id to every relevant set
-    #
-    def update
-      sets = redis.keys '*'
-      sets.select! { |s| s.include?(':') }
-
-
-      @@model.send(@@scope).find_in_batches do |models|
-        models.each do |model|
-
-          redis.sadd 'all', model.id
-
-          # For every declared set, set add this model's id
-          @@sets.each do |set|
-
-            # SCORED SETS
-            if set[:attribute]
-              # When :on is set a model will be finding the attribute that is set
-              # 'on' the model specified. This can be a name or a lambda that will
-              # return the selected values
-
-              add_to_scored_set set[:name], model, set[:on], set[:attribute], set[:descending]
-
-            # NON-SCORED SETS
-            else
-              possible_sets = sets.select { |s| s.match(/^#{set[:name]}:/) }
-
-              add_to_unscored_set model, set[:name], set[:where], possible_sets
-            end
-
+        (redis.keys('*') - ['all', 'good']).each do |set_name|
+          ids_to_remove.each do |id|
+            redis.zrem set_name, id
           end
         end
       end
-    end
 
-  #
-  # Adds the model to the given set with score equal to the value of <attribute> on model
-  # If attribute_block is set, then the score used is <attribute> on the return value of the block.
-  #
-  def add_to_scored_set set_name, model, attribute_block, attribute, descending
-    model_with_attribute = (attribute_block || lambda {|m| model}).call(model)
-    return unless model_with_attribute
-    score = model_with_attribute.read_attribute(attribute).to_score
-    score *= -1 if descending
-    redis.zadd set_name, score, model.id
-  end
+      #
+      # Goes through every record of the model in the given scope and adds the id to every relevant set
+      #
+      def update
+        sets = redis.keys '*'
+        sets.select! { |s| s.include?(':') }
 
-  def add_to_unscored_set model, attribute_name, condition, possible_sets
-    if condition
-      return unless condition.call(model)
-      set_name = attribute_name
-    else
-      set_name = attribute_name + ':' + model.read_attribute(attribute_name).to_s
-    end
 
-    # Remove from previous sets
-    redis.multi do
-      possible_sets.each do |set|
-        redis.zrem set, model.id
+        @@model.send(@@scope).find_in_batches do |models|
+          models.each do |model|
+
+            redis.sadd 'all', model.id
+
+            # For every declared set, set add this model's id
+            @@sets.each do |set|
+
+              # SCORED SETS
+              if set[:attribute]
+                # When :on is set a model will be finding the attribute that is set
+                # 'on' the model specified. This can be a name or a lambda that will
+                # return the selected values
+
+                add_to_scored_set set[:name], model, set[:on], set[:attribute], set[:descending]
+
+              # NON-SCORED SETS
+              else
+                possible_sets = sets.select { |s| s.match(/^#{set[:name]}:/) }
+
+                add_to_unscored_set model, set[:name], set[:where], possible_sets
+              end
+
+            end
+          end
+        end
       end
-      redis.zadd set_name, 0, model.id
+
+    #
+    # Adds the model to the given set with score equal to the value of <attribute> on model
+    # If attribute_block is set, then the score used is <attribute> on the return value of the block.
+    #
+    def add_to_scored_set set_name, model, attribute_block, attribute, descending
+      model_with_attribute = (attribute_block || lambda {|m| model}).call(model)
+      return unless model_with_attribute
+      score = model_with_attribute.read_attribute(attribute).to_score
+      score *= -1 if descending
+      redis.zadd set_name, score, model.id
+    end
+
+    def add_to_unscored_set model, attribute_name, condition, possible_sets
+      if condition
+        return unless condition.call(model)
+        set_name = attribute_name
+      else
+        set_name = attribute_name + ':' + model.read_attribute(attribute_name).to_s
+      end
+
+      # Remove from previous sets
+      redis.multi do
+        possible_sets.each do |set|
+          redis.zrem set, model.id
+        end
+        redis.zadd set_name, 0, model.id
+      end
     end
   end
-
 end
 
 class Object
