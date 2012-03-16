@@ -90,7 +90,7 @@ module ListMaster
     #
     def intersect *args
       options = args.extract_options!
-      limit = options[:limit] || 10
+      limit = options[:limit] || -1
       offset = options[:offset] || 0
 
       args = args.map { |a| "list_master:#{redis.namespace}:#{a}" }
