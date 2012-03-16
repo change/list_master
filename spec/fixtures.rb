@@ -2,7 +2,7 @@
 # Create db and table
 #
 
-TEST_DB = 'tmp/testdb.sqlite3'
+TEST_DB ||= 'tmp/testdb.sqlite3'
 FileUtils.rm_f TEST_DB
 
 SQLite3::Database.new(TEST_DB) do |db| db.execute_batch <<-SQL
@@ -38,11 +38,3 @@ end
 class AssocItem < ActiveRecord::Base
   belongs_to :item
 end
-
-Item.create! name: 'foo', category: 'a', :created_at => 2.months.ago      # id: 1
-Item.create! name: 'bar', category: 'b', :created_at => 1.days.ago      # id: 2
-Item.create! name: 'baz', category: 'b', :created_at => 30.seconds.ago  # id: 3
-Item.create! name: 'blah' # id : 4
-
-AssocItem.create! :item_id => 3, :rank => 1, :kind => nil # id: 1
-AssocItem.create! :item_id => 1, :rank => 2, :kind => 'a' # id: 2
