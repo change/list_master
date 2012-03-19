@@ -24,9 +24,10 @@ module ListMaster
     Module.new do
       extend ListMaster::Base
 
-      @model = dsl.instance_variable_get("@model")
-      @scope = dsl.instance_variable_get("@scope")
-      @sets = dsl.instance_variable_get("@sets")
+      @model       = dsl.instance_variable_get("@model")
+      @scope       = dsl.instance_variable_get("@scope")
+      @sets        = dsl.instance_variable_get("@sets")
+      @associations = dsl.instance_variable_get("@associations")
     end
   end
 

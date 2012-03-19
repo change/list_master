@@ -77,7 +77,7 @@ module ListMaster
         # the current sets, keeping only wanted records around
         ids_to_remove = redis.sdiff 'all', 'good'
 
-        (redis.keys('*') - ['all', 'good']).each do |set_name|
+        redis.smembers('all_sets').each do |set_name|
           ids_to_remove.each do |id|
             redis.zrem set_name, id
           end
@@ -88,11 +88,14 @@ module ListMaster
       # Goes through every record of the model in the given scope and adds the id to every relevant set
       #
       def update
-        sets = redis.keys '*'
-        sets.select! { |s| s.include?(':') }
+        all_sets = redis.smembers('all_sets').select { |s| s.include?(':') }
 
+        query = @model.send(@scope)
+        @associations.each do |association|
+          query = query.includes(association)
+        end
 
-        @model.send(@scope).find_in_batches do |models|
+        query.find_in_batches do |models|
           models.each do |model|
 
             redis.sadd 'all', model.id
@@ -110,7 +113,7 @@ module ListMaster
 
               # NON-SCORED SETS
               else
-                possible_sets = sets.select { |s| s.match(/^#{set[:name]}:/) }
+                possible_sets = all_sets.select { |s| s.match(/^#{set[:name]}:/) }
 
                 add_to_unscored_set model, set[:name], set[:where], possible_sets
               end
@@ -129,7 +132,10 @@ module ListMaster
       return unless model_with_attribute
       score = model_with_attribute.read_attribute(attribute).to_score
       score *= -1 if descending
-      redis.zadd set_name, score, model.id
+      redis.multi do
+        redis.zadd set_name, score, model.id
+        redis.sadd 'all_sets', set_name
+      end
     end
 
     def add_to_unscored_set model, attribute_name, condition, possible_sets
@@ -146,6 +152,7 @@ module ListMaster
           redis.zrem set, model.id
         end
         redis.zadd set_name, 0, model.id
+        redis.sadd 'all_sets', set_name
       end
     end
   end

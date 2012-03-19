@@ -4,6 +4,7 @@ module ListMaster
     def initialize
       @scope = :unscoped
       @sets = []
+      @associations = []
     end
 
     #
@@ -19,6 +20,14 @@ module ListMaster
     #
     def scope scope_name
       @scope = scope_name
+    end
+
+
+    #
+    # Add an association to include as part of the process query
+    #
+    def associated association
+      @associations << association
     end
 
 
