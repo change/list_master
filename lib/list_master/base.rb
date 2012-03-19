@@ -29,42 +29,7 @@
 # a.intersect 'power', 'category:category_one' #=> Array of ids of Items in 'category_one' ordered by 'power_level'
 
 module ListMaster
-  class Base
-
-    class << self
-      #
-      # Associating this list master with a model
-      #
-      def model model_class
-        @@model = model_class
-      end
-
-
-      @@scope = :unscoped
-      #
-      # Specify a scope to query for when updating redis sets
-      #
-      def scope scope_name
-        @@scope = scope_name
-      end
-
-
-      #
-      # Defining sets to maintain
-      #
-      @@sets = []
-      def set *args
-        options = args.extract_options!
-        @@sets << {
-          name: args.first.to_s,
-          attribute: nil,
-          descending: nil,
-          on: nil,
-          where: nil
-        }.merge(options)
-      end
-
-    end
+  module Base
 
     #
     # This instance's redis namespace
@@ -104,7 +69,7 @@ module ListMaster
       # Finds ids that are no longer in the given scope and removes them from each set
       #
       def clean
-        good_ids = @@model.send(@@scope).select(:id).map(&:id)
+        good_ids = @model.send(@scope).select(:id).map(&:id)
 
         redis.del 'good'
         good_ids.each { |i| redis.sadd 'good', i }
@@ -127,13 +92,13 @@ module ListMaster
         sets.select! { |s| s.include?(':') }
 
 
-        @@model.send(@@scope).find_in_batches do |models|
+        @model.send(@scope).find_in_batches do |models|
           models.each do |model|
 
             redis.sadd 'all', model.id
 
             # For every declared set, set add this model's id
-            @@sets.each do |set|
+            @sets.each do |set|
 
               # SCORED SETS
               if set[:attribute]

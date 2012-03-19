@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-class ItemListMaster < ListMaster::Base
+ItemListMaster = ListMaster.define do
   model Item
 
   scope :has_category
@@ -24,7 +24,7 @@ describe ItemListMaster do
     AssocItem.create! :item_id => 3, :rank => 1, :kind => nil
     AssocItem.create! :item_id => 1, :rank => 2, :kind => 'a'
 
-    @master = ItemListMaster.new
+    @master = ItemListMaster
   end
 
   describe "#process" do

@@ -17,6 +17,20 @@ module ListMaster
     self.redis
   end
 
+  def define &block
+    dsl = ListMaster::Dsl.new
+    dsl.instance_exec &block
+
+    Module.new do
+      extend ListMaster::Base
+
+      @model = dsl.instance_variable_get("@model")
+      @scope = dsl.instance_variable_get("@scope")
+      @sets = dsl.instance_variable_get("@sets")
+    end
+  end
+
 end
 
 require 'list_master/base'
+require 'list_master/dsl'
