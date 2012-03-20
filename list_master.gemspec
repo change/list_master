@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
   s.summary     = %q{A redis solution for presenting paginated, scoped lists of models}
   s.description = %q{It is not finished}
 
-  s.files        = Dir.glob("{bin,lib}/**/*") + %w(LICENSE README.md)
+  s.files        = Dir.glob("lib/**/*") + %w(README.md)
   s.require_path = 'lib'
 
   s.required_rubygems_version = ">= 1.3.6"
