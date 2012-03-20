@@ -55,14 +55,18 @@ module ListMaster
     #
     def intersect *args
       options = args.extract_options!
-      limit = options[:limit] || -1
+      limit = options[:limit]
       offset = options[:offset] || 0
 
       args = args.map { |a| "list_master:#{redis.namespace}:#{a}" }
 
       redis.zinterstore "list_master:#{redis.namespace}:out", args if args.count > 1
 
-      redis.zrange('out', offset, offset + limit).map(&:to_i)
+      if limit
+        redis.zrange('out', offset, offset + limit - 1).map(&:to_i)
+      else
+        redis.zrange('out', offset, -1).map(&:to_i)
+      end
     end
     private
       #
