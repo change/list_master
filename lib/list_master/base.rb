@@ -35,7 +35,7 @@ module ListMaster
     # This instance's redis namespace
     #
     def redis
-      @redis ||= Redis::Namespace.new self.class.name.underscore, :redis => ListMaster.redis
+      @redis ||= Redis::Namespace.new self.name.underscore, :redis => ListMaster.redis
     end
 
 
@@ -60,7 +60,7 @@ module ListMaster
 
       args = args.map { |a| "list_master:#{redis.namespace}:#{a}" }
 
-      redis.zinterstore "list_master:#{redis.namespace}:out", args if args.count > 1
+      redis.zinterstore "list_master:#{redis.namespace}:out", args
 
       if limit
         redis.zrange('out', offset, offset + limit - 1).map(&:to_i)
