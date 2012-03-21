@@ -119,7 +119,7 @@ module ListMaster
               else
                 possible_sets = all_sets.select { |s| s.match(/^#{set[:name]}:/) }
 
-                add_to_unscored_set model, set[:name], set[:where], possible_sets
+                add_to_unscored_set model, set[:name], set[:where], set[:multi], possible_sets
               end
 
             end
@@ -142,12 +142,15 @@ module ListMaster
       end
     end
 
-    def add_to_unscored_set model, attribute_name, condition, possible_sets
-      if condition
+    def add_to_unscored_set model, attribute_name, condition, multi, possible_sets
+      if multi
+        collection = model.send(attribute_name)
+        set_names = collection.map { |i| attribute_name + ':' + multi.call(i) }
+      elsif condition
         return unless condition.call(model)
-        set_name = attribute_name
+        set_names = [attribute_name]
       else
-        set_name = attribute_name + ':' + model.read_attribute(attribute_name).to_s
+        set_names = [attribute_name + ':' + model.read_attribute(attribute_name).to_s]
       end
 
       # Remove from previous sets
@@ -155,8 +158,10 @@ module ListMaster
         possible_sets.each do |set|
           redis.zrem set, model.id
         end
-        redis.zadd set_name, 0, model.id
-        redis.sadd 'all_sets', set_name
+        set_names.each do |set|
+          redis.zadd set, 0, model.id
+          redis.sadd 'all_sets', set
+        end
       end
     end
   end

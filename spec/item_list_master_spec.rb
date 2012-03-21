@@ -10,19 +10,24 @@ ItemListMaster = ListMaster.define do
 
   set 'category'
   set 'monthly', :where => lambda { |i| i.created_at.to_time > 30.days.ago and i.created_at.to_time < 1.days.ago }
+
+  set 'multi_items', multi: lambda { |mi| mi.name }
 end
 
 describe ItemListMaster do
 
   before do
     Item.destroy_all
-    Item.create! name: 'foo', category: 'a', :created_at => 2.months.ago
-    Item.create! name: 'bar', category: 'b', :created_at => 2.days.ago
-    Item.create! name: 'baz', category: 'b', :created_at => 30.seconds.ago
+    Item.create! name: 'foo', category: 'a', created_at: 2.months.ago
+    Item.create! name: 'bar', category: 'b', created_at: 2.days.ago
+    Item.create! name: 'baz', category: 'b', created_at: 30.seconds.ago
     Item.create! name: 'blah'
 
-    AssocItem.create! :item_id => 3, :rank => 1, :kind => nil
-    AssocItem.create! :item_id => 1, :rank => 2, :kind => 'a'
+    AssocItem.create! item_id: 3, rank: 1, kind: nil
+    AssocItem.create! item_id: 1, rank: 2, kind: 'a'
+
+    MultiItem.create! name: 'one', items: [Item.first]
+    MultiItem.create! name: 'two', items: Item.all
 
     @master = ItemListMaster
   end
@@ -73,6 +78,12 @@ describe ItemListMaster do
       @master.redis.zrange('category:b', 0, -1).map(&:to_i).to_set.should == Item.where(category: 'b').map(&:id).to_set
       @master.redis.zrange('category:a', 0, -1).map(&:to_i).to_set.should == Item.where(category: 'a').map(&:id).to_set
     end
+
+    it "should generate sets for items that are in multiple associations" do
+      @master.redis.zrange('multi_items:one', 0, -1).map(&:to_i).to_set.should == Item.has_category.select { |i| !i.multi_items.all.select { |mi| mi.name == 'one' }.empty? }.map(&:id).to_set
+      @master.redis.zrange('multi_items:two', 0, -1).map(&:to_i).to_set.should == Item.has_category.select { |i| !i.multi_items.all.select { |mi| mi.name == 'two' }.empty? }.map(&:id).to_set
+    end
+
 
     describe "#intersect" do
 
