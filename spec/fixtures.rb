@@ -1,45 +1,36 @@
 #
 # Create db and table
 #
+ActiveRecord::Base.establish_connection adapter: 'sqlite3', database: ':memory:'
 
-TEST_DB ||= 'tmp/testdb.sqlite3'
-FileUtils.rm_f TEST_DB
+ActiveRecord::Schema.define do
+  create_table :items do |t|
+    t.string :name
+    t.string :category
 
-SQLite3::Database.new(TEST_DB) do |db| db.execute_batch <<-SQL
-    CREATE TABLE items (
-    id INTEGER PRIMARY KEY,
-    name TEXT,
-    category TEXT,
-    created_at DATE,
-    updated_at DATE
-  );
+    t.timestamps
+  end
 
-  CREATE TABLE assoc_items (
-    id INTEGER PRIMARY KEY,
-    item_id INTEGER,
-    rank INTEGER,
-    kind TEXT
-  );
+  create_table :assoc_items do |t|
+    t.integer :item_id
+    t.integer :rank
+    t.string :kind
+  end
 
-  CREATE TABLE items_multi_items (
-    item_id INTEGER,
-    multi_item_id INTEGER
-  );
+  create_table :multi_items do |t|
+    t.string :name
+  end
 
-  CREATE TABLE multi_items (
-    id INTEGER PRIMARY KEY,
-    name TEXT
-  );
-
-  SQL
+  create_table :items_multi_items, id: false do |t|
+    t.integer :item_id,          null: false
+    t.integer :multi_item_id,    null: false
+  end
 end
+
 
 #
 # An example model
 #
-
-ActiveRecord::Base.establish_connection adapter: 'sqlite3', database: TEST_DB
-
 class Item < ActiveRecord::Base
   has_many :assoc_items
   has_and_belongs_to_many :multi_items

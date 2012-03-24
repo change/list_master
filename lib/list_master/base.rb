@@ -54,78 +54,87 @@ module ListMaster
     # Returns an Array of integer ids
     #
     def intersect *args
-      options = args.extract_options!
-      limit = options[:limit]
-      offset = options[:offset] || 0
+      options     = args.extract_options!
+      limit       = options[:limit]  || -1
+      offset      = options[:offset] || 0
 
-      args = args.map { |a| "list_master:#{redis.namespace}:#{a}" }
+      # Key to store result in
+      output      = 'zinterstore_out'
 
-      redis.zinterstore "list_master:#{redis.namespace}:out", args
+      # How much to return from the result
+      start_index = offset
+      stop_index  = limit > -1 ? start_index + limit - 1 : -1
 
-      if limit
-        redis.zrange('out', offset, offset + limit - 1).map(&:to_i)
-      else
-        redis.zrange('out', offset, -1).map(&:to_i)
+      # Hack because Redis::Namespace#zinterstore is not implemented
+      namespace              = "#{ListMaster.redis.namespace}:#{redis.namespace}"
+      fully_qualified_args   = args.map { |a| "#{namespace}:#{a}" }
+      fully_qualified_output = "#{namespace}:#{output}"
+
+      redis.multi do
+        redis.zinterstore fully_qualified_output, fully_qualified_args
+        redis.zrange(output, start_index, stop_index)
+      end.last.map(&:to_i)
+    end
+
+    private
+
+    #
+    # Finds ids that are no longer in the given scope and removes them from each set
+    #
+    def clean
+      good_ids = @model.send(@scope).select(:id).map(&:id)
+
+      redis.del 'good'
+      good_ids.each { |i| redis.sadd 'good', i }
+      # Get the diff of the wanted/unwanted id's and use it to 'clean'
+      # the current sets, keeping only wanted records around
+      ids_to_remove = redis.sdiff 'all', 'good'
+
+      redis.smembers('all_sets').each do |set_name|
+        ids_to_remove.each do |id|
+          redis.zrem set_name, id
+        end
       end
     end
-    private
-      #
-      # Finds ids that are no longer in the given scope and removes them from each set
-      #
-      def clean
-        good_ids = @model.send(@scope).select(:id).map(&:id)
 
-        redis.del 'good'
-        good_ids.each { |i| redis.sadd 'good', i }
-        # Get the diff of the wanted/unwanted id's and use it to 'clean'
-        # the current sets, keeping only wanted records around
-        ids_to_remove = redis.sdiff 'all', 'good'
+    #
+    # Goes through every record of the model in the given scope and adds the id to every relevant set
+    #
+    def update
+      all_sets = redis.smembers('all_sets').select { |s| s.include?(':') }
 
-        redis.smembers('all_sets').each do |set_name|
-          ids_to_remove.each do |id|
-            redis.zrem set_name, id
-          end
-        end
+      query = @model.send(@scope)
+      @associations.each do |association|
+        query = query.includes(association)
       end
 
-      #
-      # Goes through every record of the model in the given scope and adds the id to every relevant set
-      #
-      def update
-        all_sets = redis.smembers('all_sets').select { |s| s.include?(':') }
+      query.find_in_batches do |models|
+        models.each do |model|
 
-        query = @model.send(@scope)
-        @associations.each do |association|
-          query = query.includes(association)
-        end
+          redis.sadd 'all', model.id
 
-        query.find_in_batches do |models|
-          models.each do |model|
+          # For every declared set, set add this model's id
+          @sets.each do |set|
 
-            redis.sadd 'all', model.id
+            # SCORED SETS
+            if set[:attribute]
+              # When :on is set a model will be finding the attribute that is set
+              # 'on' the model specified. This can be a name or a lambda that will
+              # return the selected values
 
-            # For every declared set, set add this model's id
-            @sets.each do |set|
+              add_to_scored_set set[:name], model, set[:on], set[:attribute], set[:descending]
 
-              # SCORED SETS
-              if set[:attribute]
-                # When :on is set a model will be finding the attribute that is set
-                # 'on' the model specified. This can be a name or a lambda that will
-                # return the selected values
+            # NON-SCORED SETS
+            else
+              possible_sets = all_sets.select { |s| s.match(/^#{set[:name]}:/) }
 
-                add_to_scored_set set[:name], model, set[:on], set[:attribute], set[:descending]
-
-              # NON-SCORED SETS
-              else
-                possible_sets = all_sets.select { |s| s.match(/^#{set[:name]}:/) }
-
-                add_to_unscored_set model, set[:name], set[:where], set[:multi], possible_sets
-              end
-
+              add_to_unscored_set model, set[:name], set[:where], set[:multi], possible_sets
             end
+
           end
         end
       end
+    end
 
     #
     # Adds the model to the given set with score equal to the value of <attribute> on model
@@ -134,7 +143,9 @@ module ListMaster
     def add_to_scored_set set_name, model, attribute_block, attribute, descending
       model_with_attribute = (attribute_block || lambda {|m| model}).call(model)
       return unless model_with_attribute
-      score = model_with_attribute.read_attribute(attribute).to_score
+      value = model_with_attribute.read_attribute(attribute)
+      value = value.to_time if value.is_a? Date
+      score = value.to_i
       score *= -1 if descending
       redis.multi do
         redis.zadd set_name, score, model.id
@@ -163,18 +174,6 @@ module ListMaster
           redis.sadd 'all_sets', set
         end
       end
-    end
-  end
-end
-
-class Object
-  def to_score
-    if respond_to? :to_i
-      to_i
-    elsif is_a? Date
-      to_time.to_i
-    else
-      raise 'unable to convert #{self.inspect} to a zset score'
     end
   end
 end
