@@ -40,7 +40,7 @@ module ListMaster
         name: args.first.to_s,
         attribute: nil,
         descending: nil,
-        on: nil,
+        on: lambda {|m| m},
         where: nil,
         multi: nil
       }.merge(options)

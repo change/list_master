@@ -97,6 +97,7 @@ module ListMaster
       end
     end
 
+
     #
     # Goes through every record of the model in the given scope and adds the id to every relevant set
     #
@@ -104,34 +105,30 @@ module ListMaster
       all_sets = redis.smembers('all_sets').select { |s| s.include?(':') }
 
       query = @model.send(@scope)
-      @associations.each do |association|
-        query = query.includes(association)
-      end
+      query = query.includes(@associations)
 
-      query.find_in_batches do |models|
-        models.each do |model|
+      query.find_each do |model|
 
-          redis.sadd 'all', model.id
+        redis.sadd 'all', model.id
 
-          # For every declared set, set add this model's id
-          @sets.each do |set|
+        # For every declared set, set add this model's id
+        @sets.each do |set|
 
-            # SCORED SETS
-            if set[:attribute]
-              # When :on is set a model will be finding the attribute that is set
-              # 'on' the model specified. This can be a name or a lambda that will
-              # return the selected values
+          # SCORED SETS
+          if set[:attribute]
+            # When :on is set a model will be finding the attribute that is set
+            # 'on' the model specified. This can be a name or a lambda that will
+            # return the selected values
 
-              add_to_scored_set set[:name], model, set[:on], set[:attribute], set[:descending]
+            add_to_scored_set set[:name], model, set[:on], set[:attribute], set[:descending]
 
-            # NON-SCORED SETS
-            else
-              possible_sets = all_sets.select { |s| s.match(/^#{set[:name]}:/) }
+          # NON-SCORED SETS
+          else
+            possible_sets = all_sets.select { |s| s.match(/^#{set[:name]}:/) }
 
-              add_to_unscored_set model, set[:name], set[:where], set[:multi], possible_sets
-            end
-
+            add_to_unscored_set model, set[:name], set[:where], set[:multi], possible_sets
           end
+
         end
       end
     end
@@ -141,15 +138,23 @@ module ListMaster
     # If attribute_block is set, then the score used is <attribute> on the return value of the block.
     #
     def add_to_scored_set set_name, model, attribute_block, attribute, descending
-      model_with_attribute = (attribute_block || lambda {|m| model}).call(model)
+      model_with_attribute = attribute_block.call(model)
       return unless model_with_attribute
-      value = model_with_attribute.read_attribute(attribute)
-      value = value.to_time if value.is_a? Date
-      score = value.to_i
+      score = score_field model_with_attribute.read_attribute(attribute)
       score *= -1 if descending
       redis.multi do
         redis.zadd set_name, score, model.id
         redis.sadd 'all_sets', set_name
+      end
+    end
+
+    def score_field field
+      if field.respond_to? :to_i
+        field.to_i
+      elsif field.is_a? Date
+        field.to_time.to_i
+      else
+        raise 'unable to convert #{self.inspect} to a zset score'
       end
     end
 
