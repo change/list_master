@@ -2,14 +2,14 @@ require 'spec_helper'
 
 describe ListMaster do
 
-  describe "#redis" do
+  describe '.redis' do
 
-    it 'should return a redis namespace' do
-      ListMaster.redis.class.should == Redis::Namespace
-      ListMaster.redis.ping.should be_present
+    subject { ListMaster.redis }
 
-      ListMaster.redis.set 'foo', 'bar'
-      ListMaster.redis.get('foo').should be_eql 'bar'
+    it { should be_an_instance_of Redis::Namespace }
+
+    it "should be connected" do
+      subject.client.should be_connected
     end
 
   end
