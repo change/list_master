@@ -160,8 +160,8 @@ module ListMaster
 
     def add_to_unscored_set model, attribute_name, condition, multi, possible_sets
       if multi
-        collection = model.send(attribute_name)
-        set_names = collection.map { |i| attribute_name + ':' + multi.call(i) }
+        collection = multi.call(model)
+        set_names = collection.map { |i| attribute_name + ':' + i }
       elsif condition
         return unless condition.call(model)
         set_names = [attribute_name]
