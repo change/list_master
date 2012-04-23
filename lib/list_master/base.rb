@@ -70,10 +70,13 @@ module ListMaster
       fully_qualified_args   = args.map { |a| "#{namespace}:#{a}" }
       fully_qualified_output = "#{namespace}:#{output}"
 
-      redis.multi do
+      results = redis.multi do
         redis.zinterstore fully_qualified_output, fully_qualified_args
         redis.zrange(output, start_index, stop_index)
-      end.last.map(&:to_i)
+      end
+
+      Struct.new(:results, :offset, :limit, :total_length).new(results.last.map(&:to_i), offset, limit, results.first.length)
+
     end
 
     private
