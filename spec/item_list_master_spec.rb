@@ -101,13 +101,13 @@ describe ItemListMaster do
     describe "#intersect" do
 
       it 'should return an array of ids that are in both lists' do
-        ItemListMaster.intersect('recent', 'category:b').should == Item.where(category: 'b').order('created_at DESC').map(&:id)
+        ItemListMaster.intersect('recent', 'category:b').results.should == Item.where(category: 'b').order('created_at DESC').map(&:id)
       end
 
       it 'should accept limit and offset' do
         matching = Item.where(category: 'b').order('created_at DESC').map(&:id)
-        ItemListMaster.intersect('recent', 'category:b', :limit => 2).should == matching[0, 2]
-        ItemListMaster.intersect('recent', 'category:b', :offset => 1).should == matching[1,(matching.count() - 1)]
+        ItemListMaster.intersect('recent', 'category:b', :limit => 2).results.should == matching[0, 2]
+        ItemListMaster.intersect('recent', 'category:b', :offset => 1).results.should == matching[1,(matching.count() - 1)]
       end
 
     end
