@@ -75,7 +75,7 @@ module ListMaster
         redis.zrange(output, start_index, stop_index)
       end
 
-      Struct.new(:results, :offset, :limit, :total_length).new(results.last.map(&:to_i), offset, limit, results.first.length)
+      Struct.new(:results, :offset, :limit, :total_length).new(results.last.map(&:to_i), offset, limit, results.first)
 
     end
 
