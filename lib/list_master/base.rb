@@ -55,8 +55,9 @@ module ListMaster
     #
     def intersect *args
       options     = args.extract_options!
-      limit       = options[:limit]  || -1
-      offset      = options[:offset] || 0
+      limit       = options[:limit]    || -1
+      offset      = options[:offset]   || 0
+      reverse     = options[:reverse]  || false
 
       # Key to store result in
       output      = 'zinterstore_out'
@@ -72,13 +73,18 @@ module ListMaster
 
       results = redis.multi do
         redis.zinterstore fully_qualified_output, fully_qualified_args
-        redis.zrange(output, start_index, stop_index)
+        if reverse
+          redis.zrevrange(output, start_index, stop_index)
+        else
+          redis.zrange(output, start_index, stop_index)
+        end
       end
 
-      Struct.new(:results, :offset, :limit, :total_entries).new(
+      Struct.new(:results, :offset, :limit, :reverse, :total_entries).new(
           results.last.map(&:to_i),
           offset,
           limit,
+          reverse,
           results.first
         )
 

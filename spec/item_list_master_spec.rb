@@ -104,6 +104,10 @@ describe ItemListMaster do
         ItemListMaster.intersect('recent', 'category:b').results.should == Item.where(category: 'b').order('created_at DESC').map(&:id)
       end
 
+      it 'should return an array of ids that are in both lists, reverse sorted' do
+        ItemListMaster.intersect('recent','category:b', reverse: true).results.should == Item.where(category: 'b').order('created_at ASC').map(&:id)
+      end
+
       it 'should accept limit and offset' do
         matching = Item.where(category: 'b').order('created_at DESC').map(&:id)
         ItemListMaster.intersect('recent', 'category:b', :limit => 2).results.should == matching[0, 2]
