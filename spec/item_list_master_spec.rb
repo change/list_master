@@ -100,11 +100,15 @@ describe ItemListMaster do
 
     describe "#intersect" do
 
-      it 'should return an array of ids that are in both lists' do
+      it "should return a Struct with members :results, :offset, :limit, :reverse, and :total_entries" do
+        ItemListMaster.intersect('recent').members.should == [:results, :offset, :limit, :reverse, :total_entries]
+      end
+
+      it 'results should return an array of ids that are in both lists' do
         ItemListMaster.intersect('recent', 'category:b').results.should == Item.where(category: 'b').order('created_at DESC').map(&:id)
       end
 
-      it 'should return an array of ids that are in both lists, reverse sorted' do
+      it 'results should return an array of ids that are in both lists, reverse sorted' do
         ItemListMaster.intersect('recent','category:b', reverse: true).results.should == Item.where(category: 'b').order('created_at ASC').map(&:id)
       end
 

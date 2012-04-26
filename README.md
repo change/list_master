@@ -23,4 +23,10 @@ These sorted sets simply hold ids to the objects that they represent collections
 
     a = ItemListMaster.new
     a.process
-    a.intersect 'power', 'category:category_one' #=> Array of ids of Items in 'category_one' ordered by 'power_level'
+    a.intersect 'power', 'category:category_one' #=> Struct {
+                                                      :results => Array of ids of Items in 'category_one' ordered by 'power_level',
+                                                      :offset => integer,
+                                                      :limit => integer,
+                                                      :reverse => boolean,
+                                                      :total_entries => integer
+                                                    }
