@@ -154,7 +154,7 @@ module ListMaster
     def add_to_scored_set set_name, model, attribute_block, attribute, descending
       model_with_attribute = attribute_block.call(model)
       return unless model_with_attribute
-      score = score_field model_with_attribute.read_attribute(attribute)
+      score = score_field model_with_attribute.send(attribute)
       score *= -1 if descending
       redis.multi do
         redis.zadd set_name, score, model.id
@@ -180,7 +180,7 @@ module ListMaster
         return unless condition.call(model)
         set_names = [attribute_name]
       else
-        set_names = [attribute_name + ':' + model.read_attribute(attribute_name).to_s]
+        set_names = [attribute_name + ':' + model.send(attribute_name).to_s]
       end
 
       # Remove from previous sets

@@ -9,6 +9,8 @@ ItemListMaster = ListMaster.define do
   associated :multi_items
 
   set 'recent',     :attribute => 'created_at', :descending => true
+  set 'attribute_via_method', :attribute => 'attribute_via_method', :descending => true
+
   set 'assoc_rank', :attribute => 'rank', :on => lambda { |p| p.assoc_items.where('kind IS NULL').first }
 
   set 'category'
@@ -58,6 +60,11 @@ describe ItemListMaster do
     it 'should generate a zset for every declared set with priority' do
       ItemListMaster.redis.type('recent').should == 'zset'
       ItemListMaster.redis.zrange('recent', 0, -1).map(&:to_i).should == Item.has_category.order('created_at DESC').map(&:id)
+    end
+
+    it 'should generate a zset for every declared set with priority where the attribute is actually an instance method' do
+      ItemListMaster.redis.type('attribute_via_method').should == 'zset'
+      ItemListMaster.redis.zrange('attribute_via_method', 0, -1).map(&:to_i).should == Item.has_category.sort{|x,y| y.attribute_via_method <=> x.attribute_via_method}.map(&:id)
     end
 
     it 'should generate a zset for an associated attribute' do
