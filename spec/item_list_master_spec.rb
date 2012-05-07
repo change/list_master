@@ -124,7 +124,19 @@ describe ItemListMaster do
         ItemListMaster.intersect('recent', 'category:b', :limit => 2).results.should == matching[0, 2]
         ItemListMaster.intersect('recent', 'category:b', :offset => 1).results.should == matching[1,(matching.count() - 1)]
       end
+    end
+  end
 
+  describe "#update" do
+
+    it "allow limit and offset" do
+      ItemListMaster.update(:offset => 0, :limit => 2)
+      ItemListMaster.redis.zrange('category:a', 0, -1).map(&:to_i).count.should == 1
+      ItemListMaster.redis.zrange('category:b', 0, -1).map(&:to_i).count.should == 1
+
+      ItemListMaster.update(:offset => 2, :limit => 2)
+      ItemListMaster.redis.zrange('category:a', 0, -1).map(&:to_i).count.should == 1
+      ItemListMaster.redis.zrange('category:b', 0, -1).map(&:to_i).count.should == 2
     end
 
   end

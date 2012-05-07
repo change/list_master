@@ -90,8 +90,6 @@ module ListMaster
 
     end
 
-    private
-
     #
     # Finds ids that are no longer in the given scope and removes them from each set
     #
@@ -115,14 +113,31 @@ module ListMaster
     #
     # Goes through every record of the model in the given scope and adds the id to every relevant set
     #
-    def update
+    def update(options = {})
       all_sets = redis.smembers('all_sets').select { |s| s.include?(':') }
 
       query = @model.send(@scope)
       query = query.includes(@associations)
 
-      query.find_each do |model|
+      # find_each doesn't support limit
+      # there was a pull request adding this -- https://github.com/rails/rails/pull/5696
+      # but it was rejected as you can simulate this behavior without
+      # modifying the find_each API.
+      # we find low_id and high_id instead of just getting a range
+      # of ids so we avoid having to select all the instances to get
+      # a list of ids, and because SELECT ... IN is less performant than
+      # SELECT ... BETWEEN when dealing with large ranges
+      if options[:limit]
+        low_id = query.offset(options[:offset]).limit(1).select(:id).first.id
+        high_id = begin
+          high_offset = options[:limit]
+          high = query.offset(options[:offset].to_i + options[:limit] - 1).limit(1).select(:id)
+          high.empty? ? low_id : high.first.id
+        end
+        query = query.where(id: low_id..high_id)
+      end
 
+      query.find_each do |model|
         redis.sadd 'all', model.id
 
         # For every declared set, set add this model's id
@@ -147,6 +162,8 @@ module ListMaster
       end
     end
 
+
+    private
     #
     # Adds the model to the given set with score equal to the value of <attribute> on model
     # If attribute_block is set, then the score used is <attribute> on the return value of the block.
