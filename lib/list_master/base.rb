@@ -128,10 +128,10 @@ module ListMaster
       # a list of ids, and because SELECT ... IN is less performant than
       # SELECT ... BETWEEN when dealing with large ranges
       if options[:limit]
-        low_id = query.order(:id).offset(options[:offset]).limit(1).select(:id).first.id
+        low_id = query.order(:id).offset(options[:offset]).limit(1).first.id
         high_id = begin
           high_offset = options[:limit]
-          high = query.order(:id).offset(options[:offset].to_i + options[:limit] - 1).limit(1).select(:id)
+          high = query.order(:id).offset(options[:offset].to_i + options[:limit] - 1).limit(1)
           high.empty? ? low_id : high.first.id
         end
         query = query.where(id: low_id..high_id)
