@@ -128,8 +128,7 @@ module ListMaster
       # SELECT ... BETWEEN when dealing with large ranges
       if options[:limit]
         low_id = query.order(:id).offset(options[:offset]).limit(1).select(:id).first.id
-        high_query = query.order(:id).offset(options[:offset].to_i + options[:limit] - 1).limit(1).select(:id).all
-        high_id = high_query.empty? ? low_id :  high_query.first.id
+        high_id = query.order(:id).offset(options[:offset]).limit(options[:limit]).reverse.first.id
         query = query.where(id: low_id..high_id)
       end
 

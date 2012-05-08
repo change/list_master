@@ -139,6 +139,12 @@ describe ItemListMaster do
       ItemListMaster.redis.zrange('category:b', 0, -1).map(&:to_i).count.should == 2
     end
 
+    it "should work properly even when limit is higher than the number of rows" do
+      ItemListMaster.update(:offset => 0, :limit => 1000)
+      ItemListMaster.redis.zrange('category:a', 0, -1).map(&:to_i).count.should == 1
+      ItemListMaster.redis.zrange('category:b', 0, -1).map(&:to_i).count.should == 2
+    end
+
   end
 
 end
