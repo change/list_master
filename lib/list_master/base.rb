@@ -117,7 +117,6 @@ module ListMaster
       all_sets = redis.smembers('all_sets').select { |s| s.include?(':') }
 
       query = @model.send(@scope)
-      query = query.includes(@associations)
 
       # find_each doesn't support limit
       # there was a pull request adding this -- https://github.com/rails/rails/pull/5696
@@ -128,14 +127,13 @@ module ListMaster
       # a list of ids, and because SELECT ... IN is less performant than
       # SELECT ... BETWEEN when dealing with large ranges
       if options[:limit]
-        low_id = query.order(:id).offset(options[:offset]).limit(1).first.id
-        high_id = begin
-          high_offset = options[:limit]
-          high = query.order(:id).offset(options[:offset].to_i + options[:limit] - 1).limit(1)
-          high.empty? ? low_id : high.first.id
-        end
+        low_id = query.order(:id).offset(options[:offset]).limit(1).select(:id).first.id
+        high_query = query.order(:id).offset(options[:offset].to_i + options[:limit] - 1).limit(1).select(:id).all
+        high_id = high_query.empty? ? low_id :  high_query.first.id
         query = query.where(id: low_id..high_id)
       end
+
+      query = query.includes(@associations)
 
       query.find_each do |model|
         redis.sadd 'all', model.id
