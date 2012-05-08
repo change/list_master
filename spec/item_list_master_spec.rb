@@ -145,6 +145,17 @@ describe ItemListMaster do
       ItemListMaster.redis.zrange('category:b', 0, -1).map(&:to_i).count.should == 2
     end
 
-  end
+    it "should work fine when selecting BETWEEN the same ids" do
+      ItemListMaster.update(:offset => 0, :limit => 1)
+      ItemListMaster.redis.zrange('category:a', 0, -1).map(&:to_i).count.should == 1
+      ItemListMaster.redis.zrange('category:b', 0, -1).map(&:to_i).count.should == 0
 
+    end
+
+    it "shouldn't update anything when offset is higher than the number of rows" do
+      ItemListMaster.update(:offset => 1000, :limit => 1000)
+      ItemListMaster.redis.zrange('recent', 0, -1).map(&:to_i).count.should == 0
+    end
+
+  end
 end

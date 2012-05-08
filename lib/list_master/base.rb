@@ -127,9 +127,10 @@ module ListMaster
       # a list of ids, and because SELECT ... IN is less performant than
       # SELECT ... BETWEEN when dealing with large ranges
       if options[:limit]
-        low_id = query.order(:id).offset(options[:offset]).limit(1).select(:id).first.id
-        high_id = query.order(:id).offset(options[:offset]).limit(options[:limit]).reverse.first.id
-        query = query.where(id: low_id..high_id)
+        low_id = query.order(:id).offset(options[:offset]).limit(1).select(:id).first.try(:id)
+        high_id = query.order(:id).offset(options[:offset]).limit(options[:limit]).select(:id).reverse.first.try(:id)
+        # if the offset is > number of elements, we'll just return an empty results set
+        query = low_id ? query.where(id: low_id..high_id) : query.where(id: nil)
       end
 
       query = query.includes(@associations)
