@@ -114,6 +114,7 @@ module ListMaster
     # Goes through every record of the model in the given scope and adds the id to every relevant set
     #
     def update(options = {})
+      options.symbolize_keys!
       all_sets = redis.smembers('all_sets').select { |s| s.include?(':') }
 
       query = @model.send(@scope)
