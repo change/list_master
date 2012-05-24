@@ -13,6 +13,8 @@ ItemListMaster = ListMaster.define do
 
   set 'assoc_rank', :attribute => 'rank', :on => lambda { |p| p.assoc_items.where('kind IS NULL').first }
 
+  set 'recent_with_category_b', :attribute => 'created_at', :descending => true, :on => lambda { |p| (p.category == 'b') ? p : nil }
+
   set 'category'
   set 'monthly', :where => lambda { |i| i.created_at.to_time > 30.days.ago and i.created_at.to_time < 1.days.ago }
 
@@ -87,7 +89,14 @@ describe ItemListMaster do
       ItemListMaster.redis.zrange('recent', 0, -1).map(&:to_i).should == Item.has_category.order('created_at DESC').map(&:id)
     end
 
-    it 'should remove objects from sets if their attributes change' do
+    it 'should remove objects from sorted sets if their attributes change' do
+      ItemListMaster.redis.zrange('recent_with_category_b', 0, -1).map(&:to_i).to_set.should == Item.where(category: 'b').order('created_at DESC').map(&:id).to_set
+      Item.where(category: 'b').first.destroy
+      ItemListMaster.process
+      ItemListMaster.redis.zrange('recent_with_category_b', 0, -1).map(&:to_i).to_set.should == Item.where(category: 'b').order('created_at DESC').map(&:id).to_set
+    end
+
+    it 'should remove objects from unsorted sets if their attributes change' do
       ItemListMaster.redis.zrange('category:b', 0, -1).map(&:to_i).to_set.should == Item.where(category: 'b').map(&:id).to_set
       Item.where(category: 'b').first.update_attributes(:category => 'a')
       ItemListMaster.process

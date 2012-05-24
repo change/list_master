@@ -169,7 +169,10 @@ module ListMaster
     #
     def add_to_scored_set set_name, model, attribute_block, attribute, descending
       model_with_attribute = attribute_block.call(model)
-      return unless model_with_attribute
+      unless model_with_attribute
+        # They don't belong in this set, make sure they aren't in it!
+        return redis.zrem set_name, model.id
+      end
       score = score_field model_with_attribute.send(attribute)
       score *= -1 if descending
       redis.multi do
