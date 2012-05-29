@@ -1,12 +1,10 @@
-require 'rails/all'
-require 'rspec-rails'
-
+require 'rspec'
 require 'list_master'
 
-require 'fixtures'
-
+# Configure ListMaster
 ListMaster.redis = Redis.connect :db => 9
 
+# Get fresh db on every test
 RSpec.configure do |config|
 
   config.before(:each) do

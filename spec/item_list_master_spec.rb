@@ -1,5 +1,8 @@
 require 'spec_helper'
 
+# Create ActiveRecord models
+require 'fixtures'
+
 ItemListMaster = ListMaster.define do
   model Item
 

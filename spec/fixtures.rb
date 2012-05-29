@@ -1,3 +1,5 @@
+require 'active_record'
+
 #
 # Create db and table
 #
