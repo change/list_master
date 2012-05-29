@@ -19,7 +19,6 @@ ItemListMaster = ListMaster.define do
   set 'recent_with_category_b', :attribute => 'created_at', :descending => true, :on => lambda { |p| (p.category == 'b') ? p : nil }
 
   set 'category'
-  set 'monthly', :where => lambda { |i| i.created_at.to_time > 30.days.ago and i.created_at.to_time < 1.days.ago }
 
   set 'multi_items', multi: lambda { |i| i.multi_items.map(&:name) }
   set 'has_multi_items', multi: lambda { |i| (1..i.multi_items.length).map(&:to_s) }
@@ -48,10 +47,10 @@ describe ItemListMaster do
     MultiItem.destroy_all
   end
 
-  describe "#process" do
+  describe "#index!" do
 
     before do
-      ItemListMaster.process
+      ItemListMaster.index!
     end
 
     it 'should generate a zero priority zset for every attribute value for every declared set without priorty' do
@@ -80,29 +79,23 @@ describe ItemListMaster do
       ]
     end
 
-    it 'should generate a zet for every set declared with where' do
-      ItemListMaster.redis.type('monthly').should == 'zset'
-      in_month = Item.where("created_at > '#{30.days.ago.to_s(:db)}' AND created_at < '#{1.days.ago.to_s(:db)}'")
-      ItemListMaster.redis.zrange('monthly', 0, -1, {:withscores => true}).map(&:to_i).should == [in_month.first.id, 0]
-    end
-
-    it 'should remove deleted objects on subsequent calls to process' do
+    it 'should remove deleted objects on subsequent calls to index!' do
       Item.first.destroy
-      ItemListMaster.process
+      ItemListMaster.index!
       ItemListMaster.redis.zrange('recent', 0, -1).map(&:to_i).should == Item.has_category.order('created_at DESC').map(&:id)
     end
 
     it 'should remove objects from sorted sets if their attributes change' do
       ItemListMaster.redis.zrange('recent_with_category_b', 0, -1).map(&:to_i).to_set.should == Item.where(category: 'b').order('created_at DESC').map(&:id).to_set
       Item.where(category: 'b').first.destroy
-      ItemListMaster.process
+      ItemListMaster.index!
       ItemListMaster.redis.zrange('recent_with_category_b', 0, -1).map(&:to_i).to_set.should == Item.where(category: 'b').order('created_at DESC').map(&:id).to_set
     end
 
     it 'should remove objects from unsorted sets if their attributes change' do
       ItemListMaster.redis.zrange('category:b', 0, -1).map(&:to_i).to_set.should == Item.where(category: 'b').map(&:id).to_set
       Item.where(category: 'b').first.update_attributes(:category => 'a')
-      ItemListMaster.process
+      ItemListMaster.index!
       ItemListMaster.redis.zrange('category:b', 0, -1).map(&:to_i).to_set.should == Item.where(category: 'b').map(&:id).to_set
       ItemListMaster.redis.zrange('category:a', 0, -1).map(&:to_i).to_set.should == Item.where(category: 'a').map(&:id).to_set
     end
@@ -137,37 +130,5 @@ describe ItemListMaster do
         ItemListMaster.intersect('recent', 'category:b', :offset => 1).results.should == matching[1,(matching.count() - 1)]
       end
     end
-  end
-
-  describe "#update" do
-
-    it "allow limit and offset" do
-      ItemListMaster.update(:offset => 0, :limit => 2)
-      ItemListMaster.redis.zrange('category:a', 0, -1).map(&:to_i).count.should == 1
-      ItemListMaster.redis.zrange('category:b', 0, -1).map(&:to_i).count.should == 1
-
-      ItemListMaster.update(:offset => 2, :limit => 2)
-      ItemListMaster.redis.zrange('category:a', 0, -1).map(&:to_i).count.should == 1
-      ItemListMaster.redis.zrange('category:b', 0, -1).map(&:to_i).count.should == 2
-    end
-
-    it "should work properly even when limit is higher than the number of rows" do
-      ItemListMaster.update(:offset => 0, :limit => 1000)
-      ItemListMaster.redis.zrange('category:a', 0, -1).map(&:to_i).count.should == 1
-      ItemListMaster.redis.zrange('category:b', 0, -1).map(&:to_i).count.should == 2
-    end
-
-    it "should work fine when selecting BETWEEN the same ids" do
-      ItemListMaster.update(:offset => 0, :limit => 1)
-      ItemListMaster.redis.zrange('category:a', 0, -1).map(&:to_i).count.should == 1
-      ItemListMaster.redis.zrange('category:b', 0, -1).map(&:to_i).count.should == 0
-
-    end
-
-    it "shouldn't update anything when offset is higher than the number of rows" do
-      ItemListMaster.update(:offset => 1000, :limit => 1000)
-      ItemListMaster.redis.zrange('recent', 0, -1).map(&:to_i).count.should == 0
-    end
-
   end
 end

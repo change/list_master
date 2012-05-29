@@ -1,6 +1,10 @@
 require 'redis'
 require 'redis-namespace'
 
+require 'list_master/dsl'
+require 'list_master/index_methods'
+require 'list_master/intersect_methods'
+
 module ListMaster
 
   extend self
@@ -19,19 +23,19 @@ module ListMaster
 
   def define &block
     dsl = ListMaster::Dsl.new
-    dsl.instance_exec &block
+    dsl.instance_eval &block
 
     Module.new do
-      extend ListMaster::Base
+      self.extend ListMaster::IndexMethods, ListMaster::IntersectMethods
+      %w(@model @scope @sets @associations).each do |iv|
+        self.instance_variable_set(iv, dsl.instance_variable_get(iv))
+      end
 
-      @model       = dsl.instance_variable_get("@model")
-      @scope       = dsl.instance_variable_get("@scope")
-      @sets        = dsl.instance_variable_get("@sets")
-      @associations = dsl.instance_variable_get("@associations")
+      # This instance's redis namespace
+      def self.redis
+        @redis ||= Redis::Namespace.new self.name.underscore, :redis => ListMaster.redis
+      end
     end
   end
 
 end
-
-require 'list_master/base'
-require 'list_master/dsl'
