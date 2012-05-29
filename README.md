@@ -1,3 +1,5 @@
+[![Build Status](https://secure.travis-ci.org/change/list_master.png?branch=master)](http://travis-ci.org/change/list_master)
+
 ListMaster
 ==========
 
