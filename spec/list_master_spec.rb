@@ -6,7 +6,7 @@ describe ListMaster do
 
     it 'should return a redis namespace' do
       ListMaster.redis.class.should == Redis::Namespace
-      ListMaster.redis.ping.should be_present
+      ListMaster.redis.ping.should_not be_empty
 
       ListMaster.redis.set 'foo', 'bar'
       ListMaster.redis.get('foo').should be_eql 'bar'
