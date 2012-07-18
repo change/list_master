@@ -8,18 +8,21 @@ module ListMaster::IndexMethods
   #
   # Returns nothing.
   def index!
-    # Recreate all sets under 'processing' namespace
+    # Unique prefix for temporary sets (in case multiple calls to index!)
+    prefix = "processing:#{Time.now.to_i}"
+
+    # Recreate all sets under temporary namespace
     query_for_models.find_each do |model|
       sets_for_model(model).each_pair do |set, score|
-        redis.zadd "processing:#{set}", score, model.id
+        redis.zadd "#{prefix}:#{set}", score, model.id
       end
     end
 
     # Get "new" names of all sets just processed
-    new_sets = redis.keys.map { |k| /^processing:(.*)/.match(k) { |m| m[1] } }.compact
+    new_sets = redis.keys.map { |k| /^#{prefix}:(.*)/.match(k) { |m| m[1] } }.compact
 
     # Drop in new sets for old sets
-    new_sets.each { |set| redis.rename "processing:#{set}", set }
+    new_sets.each { |set| redis.rename "#{prefix}:#{set}", set }
 
     # Remove any stragglers (in case sets are removed from the definition)
     (redis.keys - %w(meta) - new_sets).each { |k| redis.del k }
