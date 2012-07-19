@@ -1,57 +1,17 @@
 require 'spec_helper'
 
-# Create ActiveRecord models
-require 'fixtures'
-
-ItemListMaster = ListMaster.define do
-  model Item
-
-  scope :has_category
-
-  associated :assoc_items
-  associated :multi_items
-
-  set 'recent',     :attribute => 'created_at', :descending => true
-  set 'attribute_via_method', :attribute => 'attribute_via_method', :descending => true
-
-  set 'assoc_rank', :attribute => 'rank', :on => lambda { |p| p.assoc_items.where('kind IS NULL').first }
-
-  set 'recent_with_category_b', :attribute => 'created_at', :descending => true, :on => lambda { |p| (p.category == 'b') ? p : nil }
-
-  set 'category'
-
-  set 'multi_items', multi: lambda { |i| i.multi_items.map(&:name) }
-  set 'has_multi_items', multi: lambda { |i| (1..i.multi_items.length).map(&:to_s) }
-
-end
-
-describe ItemListMaster do
+describe ListMaster::IntersectMethods do
 
   before do
-    Item.create! name: 'foo', category: 'a', created_at: 2.months.ago
-    Item.create! name: 'bar', category: 'b', created_at: 2.days.ago
-    Item.create! name: 'baz', category: 'b', created_at: 30.seconds.ago
-    Item.create! name: 'blah'
-
-    AssocItem.create! item: Item.has_category.last, rank: 1, kind: nil
-    AssocItem.create! item: Item.has_category.first, rank: 2, kind: 'a'
-
-    MultiItem.create! name: 'one', items: [Item.first]
-    MultiItem.create! name: 'two', items: Item.all
-
+    create_everything!
+    ItemListMaster.index!
   end
 
   after do
-    Item.destroy_all
-    AssocItem.destroy_all
-    MultiItem.destroy_all
+    destroy_everything!
   end
 
   describe "#index!" do
-
-    before do
-      ItemListMaster.index!
-    end
 
     it 'should generate a zero priority zset for every attribute value for every declared set without priorty' do
       ItemListMaster.redis.type('category:a').should == 'zset'
@@ -110,25 +70,7 @@ describe ItemListMaster do
       ItemListMaster.redis.zrange('has_multi_items:2', 0, -1).map(&:to_i).to_set.should == Item.has_category.select { |i| i.multi_items.length >= 2 }.map(&:id).to_set
     end
 
-    describe "#intersect" do
-
-      it "should return a Struct with members :results, :offset, :limit, :reverse, and :total_entries" do
-        ItemListMaster.intersect('recent').members.should == [:results, :offset, :limit, :reverse, :total_entries]
-      end
-
-      it 'results should return an array of ids that are in both lists' do
-        ItemListMaster.intersect('recent', 'category:b').results.should == Item.where(category: 'b').order('created_at DESC').map(&:id)
-      end
-
-      it 'results should return an array of ids that are in both lists, reverse sorted' do
-        ItemListMaster.intersect('recent','category:b', reverse: true).results.should == Item.where(category: 'b').order('created_at ASC').map(&:id)
-      end
-
-      it 'should accept limit and offset' do
-        matching = Item.where(category: 'b').order('created_at DESC').map(&:id)
-        ItemListMaster.intersect('recent', 'category:b', :limit => 2).results.should == matching[0, 2]
-        ItemListMaster.intersect('recent', 'category:b', :offset => 1).results.should == matching[1,(matching.count() - 1)]
-      end
-    end
   end
+
+
 end
