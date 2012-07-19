@@ -1,3 +1,5 @@
+require 'securerandom'
+
 module ListMaster::IndexMethods
 
   # Public: recreate all sets by querying for models
@@ -7,25 +9,26 @@ module ListMaster::IndexMethods
   # the sets are renamed to overwrite the old sets.
   #
   # Returns nothing.
+  PROCESSING_PREFIX = :processing
   def index!
     # Unique prefix for temporary sets (in case multiple calls to index!)
-    prefix = "processing:#{Time.now.to_i}"
+    prefix = "#{PROCESSING_PREFIX}:#{SecureRandom.hex}"
+
+    new_sets = Set.new
 
     # Recreate all sets under temporary namespace
     query_for_models.find_each do |model|
       sets_for_model(model).each_pair do |set, score|
+        new_sets << set
         redis.zadd "#{prefix}:#{set}", score, model.id
       end
     end
 
-    # Get "new" names of all sets just processed
-    new_sets = redis.keys.map { |k| /^#{prefix}:(.*)/.match(k) { |m| m[1] } }.compact
-
     # Drop in new sets for old sets
     new_sets.each { |set| redis.rename "#{prefix}:#{set}", set }
 
-    # Remove any stragglers (in case sets are removed from the definition)
-    (redis.keys - %w(meta) - new_sets).each { |k| redis.del k }
+    remove_unwanted_sets! new_sets
+    true
   end
 
   private
@@ -66,5 +69,15 @@ module ListMaster::IndexMethods
     else
       raise 'unable to convert #{self.inspect} to a zset score'
     end
+  end
+
+  # Remove any stragglers (in case sets are removed from the definition)
+  def remove_unwanted_sets!(new_sets)
+    regex = /^#{PROCESSING_PREFIX}/
+    everything_without_other_processing_sets = redis.keys.reject{|k| k =~ regex }
+    without_meta_keys = everything_without_other_processing_sets - %w(meta)
+    without_new_sets = without_meta_keys - new_sets.to_a
+
+    without_new_sets.each { |k| redis.del k }
   end
 end
