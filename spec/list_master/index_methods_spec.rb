@@ -20,7 +20,7 @@ describe ListMaster::IntersectMethods do
       it 'should generate a zero priority zset for every attribute value for every declared set without priorty' do
         ItemListMaster.redis.type('category:a').should == 'zset'
         ItemListMaster.redis.type('category:b').should == 'zset'
-        ids_and_scores = ItemListMaster.redis.zrange('category:b', 0, -1, {withscores: true}).map(&:to_i)
+        ids_and_scores = ItemListMaster.redis.zrange('category:b', 0, -1, {withscores: true}).flatten.map(&:to_i)
         ids_and_scores.select {|x| x != 0}.sort.should == Item.where(category: 'b').map(&:id)
         ids_and_scores.select {|x| x == 0}.count.should == Item.where(category: 'b').count
       end
@@ -38,7 +38,7 @@ describe ListMaster::IntersectMethods do
       it 'should generate a zset for an associated attribute' do
         ItemListMaster.redis.type('assoc_rank').should == 'zset'
         item = Item.all.select {|x| x.assoc_items.where(kind: nil).present? }.first
-        ItemListMaster.redis.zrange('assoc_rank', 0, -1, {:withscores => true}).map(&:to_i).should == [
+        ItemListMaster.redis.zrange('assoc_rank', 0, -1, {:withscores => true}).flatten.map(&:to_i).should == [
           item.id, item.assoc_items.where(kind: nil).first.rank
         ]
       end

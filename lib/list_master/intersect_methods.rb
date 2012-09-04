@@ -19,13 +19,8 @@ module ListMaster::IntersectMethods
     start_index = offset
     stop_index  = limit > -1 ? start_index + limit - 1 : -1
 
-    # Hack because Redis::Namespace#zinterstore is not implemented
-    namespace              = "#{ListMaster.redis.namespace}:#{redis.namespace}"
-    fully_qualified_args   = args.map { |a| "#{namespace}:#{a}" }
-    fully_qualified_output = "#{namespace}:#{output}"
-
     results = redis.multi do
-      redis.zinterstore fully_qualified_output, fully_qualified_args
+      redis.zinterstore output, args
       if reverse
         redis.zrevrange(output, start_index, stop_index)
       else
