@@ -74,6 +74,11 @@ describe ListMaster::IntersectMethods do
         ItemListMaster.redis.zrange('has_multi_items:2', 0, -1).map(&:to_i).to_set.should == Item.has_category.select { |i| i.multi_items.length >= 2 }.map(&:id).to_set
       end
 
+      it "should generate a single set with items matching a block for unsorted sets with an if option" do
+        ItemListMaster.redis.zrange('has_category_b', 0, -1, withscores: true).map(&:last).uniq.should == [0.0]
+        ItemListMaster.redis.zrange('has_category_b', 0, -1).map(&:to_i).to_set.should == Item.has_category.where(category: 'b').map(&:id).to_set
+      end
+
     end
 
     it "should remove any sets not in the definition and not starting with PROCESSING_PREFIX when finished" do

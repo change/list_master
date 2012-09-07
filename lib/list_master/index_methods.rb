@@ -50,6 +50,9 @@ module ListMaster::IndexMethods
         if set[:multi]
           collection = set[:multi].call(model).compact
           set_names = collection.map { |i| set[:name] + ':' + i }
+        elsif set[:if]
+          next unless set[:if].call(model)
+          set_names = [set[:name]]
         else
           set_names = [set[:name] + ':' + model.send(set[:name]).to_s]
         end

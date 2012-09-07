@@ -17,4 +17,6 @@ ItemListMaster = ListMaster.define do
 
   set 'multi_items', multi: lambda { |i| i.multi_items.map(&:name) }
   set 'has_multi_items', multi: lambda { |i| (1..i.multi_items.length).map(&:to_s) }
+
+  set 'has_category_b', if: lambda { |i| i.category == 'b' }
 end

@@ -41,7 +41,7 @@ module ListMaster
         attribute: nil,
         descending: nil,
         on: lambda {|m| m},
-        where: nil,
+        if: nil,
         multi: nil
       }.merge(options)
     end
