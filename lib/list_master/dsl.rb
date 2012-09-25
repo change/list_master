@@ -41,8 +41,9 @@ module ListMaster
         attribute: nil,
         descending: nil,
         on: lambda {|m| m},
-        if: nil,
-        multi: nil
+        if: lambda {|m| true},
+        multi: nil,
+        single: false,
       }.merge(options)
     end
 

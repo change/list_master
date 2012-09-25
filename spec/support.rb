@@ -15,9 +15,9 @@ module Support
   private
 
   def create_items!
-    Item.create! name: 'foo', category: 'a', created_at: 2.months.ago
-    Item.create! name: 'bar', category: 'b', created_at: 2.days.ago
-    Item.create! name: 'baz', category: 'b', created_at: 30.seconds.ago
+    Item.create! name: 'foo', category: 'a', value: 1, created_at: 2.months.ago
+    Item.create! name: 'bar', category: 'b', value: 2, created_at: 2.days.ago
+    Item.create! name: 'baz', category: 'b', value: 0, created_at: 30.seconds.ago
     Item.create! name: 'blah'
   end
 
