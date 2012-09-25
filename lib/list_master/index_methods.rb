@@ -40,6 +40,8 @@ module ListMaster::IndexMethods
   def sets_for_model(model)
     result = {}
     @sets.each do |set|
+      next unless set[:if].call(model)
+
       if set[:attribute] # sorted sets
         model_with_attribute = set[:on].call(model)
         next unless model_with_attribute
@@ -50,8 +52,7 @@ module ListMaster::IndexMethods
         if set[:multi]
           collection = set[:multi].call(model).compact
           set_names = collection.map { |i| set[:name] + ':' + i }
-        elsif set[:if]
-          next unless set[:if].call(model)
+        elsif set[:single]
           set_names = [set[:name]]
         else
           set_names = [set[:name] + ':' + model.send(set[:name]).to_s]

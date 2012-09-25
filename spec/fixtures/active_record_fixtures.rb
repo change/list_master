@@ -9,6 +9,7 @@ ActiveRecord::Schema.define do
   create_table :items do |t|
     t.string :name
     t.string :category
+    t.integer :value
 
     t.timestamps
   end
