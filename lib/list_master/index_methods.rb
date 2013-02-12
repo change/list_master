@@ -19,13 +19,21 @@ module ListMaster::IndexMethods
     # Recreate all sets under temporary namespace
     query_for_models.find_each do |model|
       sets_for_model(model).each_pair do |set, score|
-        new_sets << set
+        unless new_sets.include? set
+          new_sets << set
+          redis.expire "#{prefix}:#{set}", 2.days.to_i
+        end
         redis.zadd "#{prefix}:#{set}", score, model.id
       end
     end
 
     # Drop in new sets for old sets
-    new_sets.each { |set| redis.rename "#{prefix}:#{set}", set }
+    new_sets.each do |set|
+      redis.multi do |multi|
+        redis.persist "#{prefix}:#{set}"
+        redis.rename "#{prefix}:#{set}", set
+      end
+    end
 
     remove_unwanted_sets! new_sets
     true
