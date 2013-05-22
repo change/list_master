@@ -1,4 +1,5 @@
 require 'securerandom'
+require 'tempfile'
 
 module ListMaster::IndexMethods
 
@@ -11,35 +12,69 @@ module ListMaster::IndexMethods
   # Returns nothing.
   PROCESSING_PREFIX = :processing
   def index!
-    # Unique prefix for temporary sets (in case multiple calls to index!)
     prefix = "#{PROCESSING_PREFIX}:#{SecureRandom.hex}"
+    temp_files ||= Hash.new do |h, k|
+      temp = Tempfile.new(k)
+      temp.sync = true
+      temp.write "**\r\n"
+      temp.write redis_arg('ZADD')
+      temp.write redis_arg(unqualified_key(k, prefix))
+      h[k] = temp
+    end
 
-    new_sets = Set.new
-
-    # Recreate all sets under temporary namespace
+    # Recreate all sets in temp files
     query_for_models.find_each do |model|
       sets_for_model(model).each_pair do |set, score|
-        unless new_sets.include? set
-          new_sets << set
-          redis.expire "#{prefix}:#{set}", 2.days.to_i
-        end
-        redis.zadd "#{prefix}:#{set}", score, model.id
+        temp_files[set].write redis_arg(score)
+        temp_files[set].write redis_arg(model.id)
       end
     end
 
-    # Drop in new sets for old sets
-    new_sets.each do |set|
-      redis.multi do |multi|
-        redis.persist "#{prefix}:#{set}"
-        redis.rename "#{prefix}:#{set}", set
-      end
+    # Insert new sets into temporary sets in redis
+    temp_files.values.each do |temp_file|
+      pipe_file_to_redis(temp_file.path)
     end
 
-    remove_unwanted_sets! new_sets
+    # Swap out new sets for old sets
+    temp_files.keys.each do |set|
+      redis.rename "#{prefix}:#{set}", set
+    end
+
+    # Remove any sets that should be deleted
+    remove_unwanted_sets! temp_files.keys
+
     true
+  ensure
+    temp_files.values.each { |t| t.close; t.unlink }
   end
 
   private
+
+  # raw representation of a redis argument
+  # see: http://redis.io/topics/mass-insert
+  def redis_arg(arg)
+    "$#{arg.to_s.bytesize}\r\n#{arg}\r\n"
+  end
+
+  def unqualified_key(key, prefix)
+    namespaces = []
+    redis = self.redis
+    while redis.is_a? Redis::Namespace
+      namespaces.unshift(redis.namespace)
+      redis = redis.redis
+    end
+    namespaces << prefix
+    "#{namespaces.join(':')}:#{key}"
+  end
+
+  def pipe_file_to_redis(file_path)
+    # We insert the number of redis arguments into the first line
+    num_lines = `wc -l #{file_path}`.split.first.to_i
+    num_args = ((num_lines - 1) / 2).to_i
+    `sed -e 's/^\\*\\*/*#{num_args}/' -i .bak #{file_path}`
+
+    `redis-cli -h #{redis.client.host} -p #{redis.client.port} -n #{redis.client.db} --pipe < #{file_path}`
+  end
 
   def query_for_models
     @model.send(@scope).includes(@associations)
