@@ -38,7 +38,7 @@ class Item < ActiveRecord::Base
   has_many :assoc_items
   has_and_belongs_to_many :multi_items
 
-  scope :has_category, where('category IS NOT NULL')
+  scope :has_category, -> { where('category IS NOT NULL') }
 
   def attribute_via_method
     @attribute_via_method ||= created_at.to_i
