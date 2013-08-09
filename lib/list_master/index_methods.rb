@@ -10,6 +10,7 @@ module ListMaster::IndexMethods
   #
   # Returns nothing.
   PROCESSING_PREFIX = :processing
+  TTL = 86400
   def index!
     # Unique prefix for temporary sets (in case multiple calls to index!)
     prefix = "#{PROCESSING_PREFIX}:#{SecureRandom.hex}"
@@ -19,19 +20,21 @@ module ListMaster::IndexMethods
     # Recreate all sets under temporary namespace
     query_for_models.find_each do |model|
       sets_for_model(model).each_pair do |set, score|
+        temp_set = "#{prefix}:#{set}"
+        redis.zadd temp_set, score, model.id
         unless new_sets.include? set
           new_sets << set
-          redis.expire "#{prefix}:#{set}", 2.days.to_i
+          redis.expire temp_set, TTL
         end
-        redis.zadd "#{prefix}:#{set}", score, model.id
       end
     end
 
     # Drop in new sets for old sets
     new_sets.each do |set|
+      temp_set = "#{prefix}:#{set}"
       redis.multi do |multi|
-        redis.persist "#{prefix}:#{set}"
-        redis.rename "#{prefix}:#{set}", set
+        redis.persist temp_set
+        redis.rename temp_set, set
       end
     end
 
