@@ -65,8 +65,8 @@ describe ListMaster::IntersectMethods do
       end
 
       it "should generate sets for items that are in multiple associations via a model attribute" do
-        ItemListMaster.redis.zrange('multi_items:one', 0, -1).map(&:to_i).to_set.should == Item.has_category.select { |i| !i.multi_items.all.select { |mi| mi.name == 'one' }.empty? }.map(&:id).to_set
-        ItemListMaster.redis.zrange('multi_items:two', 0, -1).map(&:to_i).to_set.should == Item.has_category.select { |i| !i.multi_items.all.select { |mi| mi.name == 'two' }.empty? }.map(&:id).to_set
+        ItemListMaster.redis.zrange('multi_items:one', 0, -1).map(&:to_i).to_set.should == Item.has_category.select { |i| !i.multi_items.load.select { |mi| mi.name == 'one' }.empty? }.map(&:id).to_set
+        ItemListMaster.redis.zrange('multi_items:two', 0, -1).map(&:to_i).to_set.should == Item.has_category.select { |i| !i.multi_items.load.select { |mi| mi.name == 'two' }.empty? }.map(&:id).to_set
       end
 
       it "should generate sets for items that are in multiple associations via an arbitrary block" do
