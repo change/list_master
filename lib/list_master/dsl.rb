@@ -7,6 +7,10 @@ module ListMaster
       @associations = []
     end
 
+    def namespace namespace
+      @namespace = namespace
+    end
+
     #
     # Associating this list master with a model
     #

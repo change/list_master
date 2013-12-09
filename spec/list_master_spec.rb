@@ -12,6 +12,18 @@ describe ListMaster do
       ListMaster.redis.get('foo').should be_eql 'bar'
     end
 
+    it 'should use the set namespace for redis when its defined' do
+      ExampleListMaster = ListMaster.define do
+        # just an empty list master
+      end
+      ExampleListMaster.redis.namespace.should eql('example_list_master')
+      ExampleListMaster = ListMaster.define do
+        namespace "foo_bar_batz"
+      end
+      ExampleListMaster.redis.namespace.should eql('foo_bar_batz')
+      ExampleListMaster = nil
+    end
+
   end
 
 end
