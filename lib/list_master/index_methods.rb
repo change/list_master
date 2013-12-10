@@ -28,7 +28,7 @@ module ListMaster::IndexMethods
         @temp_sets[temp_set] << [score, model.id]
 
         # if temp set size if big, lets do one redis command and push them all in
-        if @temp_sets[temp_set].size > 1000
+        if @temp_sets[temp_set].size > 10000
           add_set_to_redis(temp_set, set, @temp_sets[temp_set])
         end
 
