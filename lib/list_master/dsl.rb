@@ -5,10 +5,15 @@ module ListMaster
       @scope = :unscoped
       @sets = []
       @associations = []
+      @remove_sets = true
     end
 
     def namespace namespace
       @namespace = namespace
+    end
+
+    def remove_sets remove
+      @remove_sets = remove
     end
 
     #

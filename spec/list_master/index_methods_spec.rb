@@ -91,6 +91,14 @@ describe ListMaster::IntersectMethods do
       ItemListMaster.redis.exists(:foo).should be_false
     end
 
+    it "should not remove any sets that are not in the definition if remove_sets is set to false" do
+      ItemListMaster.redis.set :foo, :bar
+      ItemListMaster.instance_variable_set(:@remove_sets, false)
+      ItemListMaster.index!
+      ItemListMaster.redis.exists(:foo).should be_true
+      ItemListMaster.instance_variable_set(:@remove_sets, true)
+    end
+
     it "should not remove any sets starting with PROCESSING_PREFIX when finished" do
       key = "#{ListMaster::IndexMethods::PROCESSING_PREFIX}:foo"
       ItemListMaster.redis.set key, :bar

@@ -27,7 +27,7 @@ module ListMaster
 
     Module.new do
       self.extend ListMaster::IndexMethods, ListMaster::IntersectMethods
-      %w(@model @scope @sets @associations @namespace).each do |iv|
+      %w(@model @scope @sets @associations @namespace @remove_sets).each do |iv|
         self.instance_variable_set(iv, dsl.instance_variable_get(iv))
       end
 

@@ -38,7 +38,7 @@ module ListMaster::IndexMethods
       end
     end
 
-    remove_unwanted_sets! new_sets
+    remove_unwanted_sets!(new_sets) if @remove_sets
     true
   end
 
