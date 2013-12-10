@@ -15,22 +15,34 @@ module ListMaster::IndexMethods
     # Unique prefix for temporary sets (in case multiple calls to index!)
     prefix = "#{PROCESSING_PREFIX}:#{SecureRandom.hex}"
 
-    new_sets = Set.new
+    @new_sets = Set.new
+    @temp_sets = {}
 
     # Recreate all sets under temporary namespace
     query_for_models.find_each do |model|
       sets_for_model(model).each_pair do |set, score|
         temp_set = "#{prefix}:#{set}"
-        redis.zadd temp_set, score, model.id
-        unless new_sets.include? set
-          new_sets << set
-          redis.expire temp_set, TTL
+        # add to temp sets if its not there already
+        @temp_sets[temp_set] = [] if @temp_sets[temp_set].nil?
+        # add entry to temp set
+        @temp_sets[temp_set] << [score, model.id]
+
+        # if temp set size if big, lets do one redis command and push them all in
+        if @temp_sets[temp_set].size > 1000
+          add_set_to_redis(temp_set, set, @temp_sets[temp_set])
         end
+
       end
     end
 
+    # temp sets that haven't been cleared need to be cleared and added
+    @temp_sets.each_pair do |temp_set, entries|
+      set = temp_set.gsub("#{prefix}:",'')
+      add_set_to_redis(temp_set, set, entries)
+    end
+
     # Drop in new sets for old sets
-    new_sets.each do |set|
+    @new_sets.each do |set|
       temp_set = "#{prefix}:#{set}"
       redis.multi do |multi|
         redis.persist temp_set
@@ -38,11 +50,20 @@ module ListMaster::IndexMethods
       end
     end
 
-    remove_unwanted_sets!(new_sets) if @remove_sets
+    remove_unwanted_sets!(@new_sets) if @remove_sets
     true
   end
 
   private
+
+  def add_set_to_redis(temp_set, set, entries)
+    redis.zadd temp_set, entries
+    @temp_sets.delete(temp_set)
+    unless @new_sets.include? set
+      @new_sets << set
+      redis.expire temp_set, TTL
+    end
+  end
 
   def query_for_models
     @model.send(@scope).includes(@associations)
