@@ -73,24 +73,35 @@ module ListMaster::IndexMethods
     result = {}
     @sets.each do |set|
       next unless set[:if].call(model)
+      retry_count = 0
 
-      if set[:attribute] # sorted sets
-        model_with_attribute = set[:on].call(model)
-        next unless model_with_attribute
-        score = score_field model_with_attribute.send(set[:attribute])
-        score *= -1 if set[:descending]
-        result[set[:name]] = score
-      else # unsorted sets
-        if set[:multi]
-          collection = set[:multi].call(model).compact
-          set_names = collection.map { |i| set[:name] + ':' + i }
-        elsif set[:single]
-          set_names = [set[:name]]
-        else
-          set_names = [set[:name] + ':' + model.send(set[:name]).to_s]
+      begin
+        if set[:attribute] # sorted sets
+          model_with_attribute = set[:on].call(model)
+          next unless model_with_attribute
+          score = score_field model_with_attribute.send(set[:attribute])
+          score *= -1 if set[:descending]
+          result[set[:name]] = score
+        else # unsorted sets
+          if set[:multi]
+            collection = set[:multi].call(model).compact
+            set_names = collection.map { |i| set[:name] + ':' + i }
+          elsif set[:single]
+            set_names = [set[:name]]
+          else
+            set_names = [set[:name] + ':' + model.send(set[:name]).to_s]
+          end
+          set_names.each do |set_name|
+            result[set_name] = 0
+          end
         end
-        set_names.each do |set_name|
-          result[set_name] = 0
+      rescue ActiveRecord::StatementInvalid, Mysql2::Error
+        if retry_count < 3
+          ActiveRecord::Base.connection.reconnect!
+          retry_count += 1
+          retry
+        else
+          raise "Mysql2::Error after #{retry_count} retries"
         end
       end
     end
