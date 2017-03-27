@@ -28,7 +28,7 @@ describe ListMaster do
       ExampleListMaster = ListMaster.define do
         remove_sets false
       end
-      ExampleListMaster.instance_variable_get(:@remove_sets).should be_false
+      ExampleListMaster.instance_variable_get(:@remove_sets).should be_falsey
     end
 
   end

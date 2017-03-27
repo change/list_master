@@ -14,10 +14,10 @@ RSpec.configure do |config|
   config.include Support
 
   config.before(:each) do
-    ListMaster.redis.flushdb
+    ListMaster.redis.redis.flushdb
   end
 
   config.after(:suite) do
-    ListMaster.redis.flushdb
+    ListMaster.redis.redis.flushdb
   end
 end
