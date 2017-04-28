@@ -1,2 +1,4 @@
 .bin
 Gemfile.lock
+
+*.pem
