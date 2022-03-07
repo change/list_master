@@ -1,5 +1,6 @@
-module Support
+# frozen_string_literal: true
 
+module Support
   def create_everything!
     create_items!
     create_assoc_items!
@@ -30,5 +31,4 @@ module Support
     MultiItem.create! name: 'one', items: [Item.first]
     MultiItem.create! name: 'two', items: Item.all
   end
-
 end
