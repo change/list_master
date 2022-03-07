@@ -9,6 +9,7 @@ jobs:
     working_directory: ~/change/list_master
     docker:
       - image: circleci/ruby:2.6.5
+      - image: redis:2.8
     steps:
       - checkout
       - restore_cache:
