@@ -1,0 +1,61 @@
+version: 2.1
+
+orbs:
+  gpr-publish: change/gpr-publish@1.0.0
+
+jobs:
+  run_tests:
+    parallelism: 1
+    working_directory: ~/change/list_master
+    docker:
+      - image: circleci/ruby:2.6.5
+      - image: redis:2.8
+    steps:
+      - checkout
+      - restore_cache:
+          key: v1-bundle-{{ checksum "list_master.gemspec" }}
+      - run:
+          name: Install gems
+          command: |
+            gem install bundler -v 1.17.3
+            bundle install --path vendor/bundle
+      - save_cache:
+          key: v1-bundle-{{ checksum "list_master.gemspec" }}
+          paths:
+            - vendor/bundle
+      - run:
+          name: Run tests
+          command: |
+            TEST_FILES=$(circleci tests glob "spec/**/*_spec.rb" | circleci tests split --split-by=timings)
+            printf "\nTest files:\n$TEST_FILES\n\n"
+            bundle exec rspec --color \
+                              --format documentation \
+                              --profile \
+                              --drb \
+                              --format RspecJunitFormatter \
+                              --out log/test_results/rspec.xml \
+                              --format progress \
+                              $TEST_FILES
+          environment:
+            RAILS_ENV: test
+      - store_test_results:
+          path: log/test_results/
+      - store_artifacts:
+          path: log
+
+workflows:
+  version: 2
+
+  test_and_push:
+    jobs:
+      - run_tests:
+          context: circleci-github
+      - gpr-publish/build_and_publish_gem:
+          context: circleci-gpr
+          gem_name: list_master
+          filters:
+            branches:
+              only:
+                - master
+          requires:
+            - run_tests

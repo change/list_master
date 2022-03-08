@@ -1,36 +1,42 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
+# rubocop:disable RSpec/MultipleExpectations
 describe ListMaster do
+  describe '#redis' do
+    it 'returns a redis namespace' do
+      expect(described_class.redis.class).to eq(Redis::Namespace)
+      described_class.redis.ping.should_not be_empty
 
-  describe "#redis" do
-
-    it 'should return a redis namespace' do
-      ListMaster.redis.class.should == Redis::Namespace
-      ListMaster.redis.ping.should_not be_empty
-
-      ListMaster.redis.set 'foo', 'bar'
-      ListMaster.redis.get('foo').should be_eql 'bar'
+      described_class.redis.set('foo', 'bar')
+      expect(described_class.redis.get('foo')).to eq('bar')
     end
 
-    it 'should use the set namespace for redis when its defined' do
-      ExampleListMaster = ListMaster.define do
-        # just an empty list master
-      end
-      ExampleListMaster.redis.namespace.should eql('example_list_master')
-      ExampleListMaster = ListMaster.define do
-        namespace "foo_bar_batz"
-      end
-      ExampleListMaster.redis.namespace.should eql('foo_bar_batz')
-      ExampleListMaster = nil
+    it 'uses the class as the namespace for redis by default' do
+      stub_const('ExampleListMaster', described_class.define {})
+      expect(ExampleListMaster.redis.namespace).to eq('example_list_master')
+    end
+
+    it 'uses the set namespace for redis when its defined' do
+      stub_const(
+        'ExampleListMaster',
+        described_class.define do
+          namespace 'foo_bar_batz'
+        end,
+      )
+      expect(ExampleListMaster.redis.namespace).to eq('foo_bar_batz')
     end
 
     it 'sets the remove_sets constant to false if defined' do
-      ExampleListMaster = ListMaster.define do
-        remove_sets false
-      end
-      ExampleListMaster.instance_variable_get(:@remove_sets).should be_falsey
+      stub_const(
+        'ExampleListMaster',
+        described_class.define do
+          remove_sets false
+        end,
+      )
+      expect(ExampleListMaster.instance_variable_get(:@remove_sets)).to be_falsey
     end
-
   end
-
 end
+# rubocop:enable RSpec/MultipleExpectations

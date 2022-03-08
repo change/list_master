@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'active_record'
 
 #
@@ -30,7 +32,6 @@ ActiveRecord::Schema.define do
   end
 end
 
-
 #
 # An example model
 #
@@ -43,7 +44,6 @@ class Item < ActiveRecord::Base
   def attribute_via_method
     @attribute_via_method ||= created_at.to_i
   end
-
 end
 
 class AssocItem < ActiveRecord::Base

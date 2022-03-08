@@ -1,0 +1,6 @@
+require: rubocop-rspec
+inherit_gem:
+  ruby_lint_rules: default.yml
+
+AllCops:
+  TargetRubyVersion: 2.6
