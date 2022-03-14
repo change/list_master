@@ -22,7 +22,7 @@ module ListMaster
       stop_index  = limit > -1 ? start_index + limit - 1 : -1
 
       results = redis.multi do
-        redis.zinterstore output, args
+        redis.zinterstore(output, args)
         if reverse
           redis.zrevrange(output, start_index, stop_index)
         else

@@ -44,8 +44,8 @@ module ListMaster
       @new_sets.each do |set|
         temp_set = "#{prefix}:#{set}"
         redis.multi do |_multi|
-          redis.persist temp_set
-          redis.rename temp_set, set
+          redis.persist(temp_set)
+          redis.rename(temp_set, set)
         end
       end
 

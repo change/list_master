@@ -13,7 +13,7 @@ module ListMaster
 
   # Accepts a Redis object
   def redis=(redis)
-    @redis = Redis::Namespace.new(:list_master, redis: redis)
+    @redis = redis
   end
 
   # Returns the current Redis connection. If none has been created, create default
