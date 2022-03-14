@@ -21,12 +21,12 @@ module ListMaster
       start_index = offset
       stop_index  = limit > -1 ? start_index + limit - 1 : -1
 
-      results = redis.multi do
-        redis.zinterstore(output, args)
+      results = redis.multi do |pipeline|
+        pipeline.zinterstore(output, args)
         if reverse
-          redis.zrevrange(output, start_index, stop_index)
+          pipeline.zrevrange(output, start_index, stop_index)
         else
-          redis.zrange(output, start_index, stop_index)
+          pipeline.zrange(output, start_index, stop_index)
         end
       end
 

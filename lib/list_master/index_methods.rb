@@ -43,9 +43,9 @@ module ListMaster
       # Drop in new sets for old sets
       @new_sets.each do |set|
         temp_set = "#{prefix}:#{set}"
-        redis.multi do |_multi|
-          redis.persist(temp_set)
-          redis.rename(temp_set, set)
+        redis.multi do |pipeline|
+          pipeline.persist(temp_set)
+          pipeline.rename(temp_set, set)
         end
       end
 
@@ -56,12 +56,12 @@ module ListMaster
     private
 
     def add_set_to_redis(temp_set, set, entries)
-      redis.zadd temp_set, entries
+      redis.zadd(temp_set, entries)
       @temp_sets.delete(temp_set)
       return if @new_sets.include?(set)
 
       @new_sets << set
-      redis.expire temp_set, TTL
+      redis.expire(temp_set, TTL)
     end
 
     def query_for_models
